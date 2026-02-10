@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 // Force dynamic rendering — do NOT try to pre-render at build time
 export const dynamic = 'force-dynamic';
 
-const CSV_URL = process.env.NEXT_PUBLIC_CSV_URL;
+const CSV_URL = process.env.NEXT_PUBLIC_CSV_URL?.trim();
 
 // Cache the VINs for 60 seconds to avoid excessive requests
 let cachedVins = null;
@@ -12,20 +12,36 @@ let cacheTimestamp = 0;
 const CACHE_DURATION = 60 * 1000; // 60 seconds
 
 async function fetchVins() {
+    if (!CSV_URL) {
+        throw new Error('NEXT_PUBLIC_CSV_URL no está configurada en las variables de entorno');
+    }
+
     const now = Date.now();
     if (cachedVins && now - cacheTimestamp < CACHE_DURATION) {
         return cachedVins;
     }
 
+    console.log('Fetching CSV from:', CSV_URL);
+
     const response = await fetch(CSV_URL, {
         next: { revalidate: 60 },
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch CSV: ${response.status}`);
+        const text = await response.text();
+        console.error('CSV fetch failed:', response.status, text);
+        throw new Error(`Error de Google Sheets: ${response.status} ${response.statusText}`);
     }
 
     const csvText = await response.text();
+
+    if (!csvText || csvText.length < 10) {
+        throw new Error('El CSV recibido está vacío o es demasiado corto');
+    }
 
     const parsed = Papa.parse(csvText, {
         skipEmptyLines: true,
@@ -73,7 +89,7 @@ export async function GET(request) {
     } catch (error) {
         console.error('Error fetching VINs:', error);
         return NextResponse.json(
-            { error: 'Error al obtener los VINs del spreadsheet' },
+            { error: error.message || 'Error desconocido al obtener los VINs' },
             { status: 500 }
         );
     }

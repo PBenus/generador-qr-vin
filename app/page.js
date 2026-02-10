@@ -23,11 +23,17 @@ export default function Home() {
         async function loadVins() {
             try {
                 setLoading(true);
+                setError(null);
                 const res = await fetch('/api/vins');
-                if (!res.ok) throw new Error('Error al cargar VINs');
                 const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al cargar VINs');
+                }
+
                 setAllVins(data.results || []);
             } catch (err) {
+                console.error('UI Fetch Error:', err);
                 setError(err.message);
             } finally {
                 setLoading(false);

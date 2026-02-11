@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Papa from 'papaparse';
 
 // Force dynamic rendering — do NOT try to pre-render at build time
+// Triggering redeploy to verify environment variables
 export const dynamic = 'force-dynamic';
 
 const CSV_URL = process.env.NEXT_PUBLIC_CSV_URL?.trim();
